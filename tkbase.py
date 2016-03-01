@@ -7,6 +7,9 @@ import Tkinter as tk
 import tkFont as tkf
 import math
 import random
+from view import *
+from data import *
+
 
 # create a class to build and manage the display
 class DisplayApp:
@@ -53,27 +56,82 @@ class DisplayApp:
 
         # set up the application state
         self.objects = [] # list of data objects that will be drawn in the canvas
-        self.data = None # will hold the raw data someday.
+        self.data = Data("data.csv") # will hold the raw data someday.
+        self.points = self.data.getData(["A", "B", "C"])
         self.baseClick = None # used to keep track of mouse movement
         self.xDist = "Uniform" # used to keep track of x distribution for rand
         self.yDist = "Uniform" # used to keep track of y distribution for rand
         self.randPoints = 100 # keeps track of number of points to be added
 
+        self.view = View()
+        self.endpoints = np.matrix( [[0,1,0,0,0,0],
+                                     [0,0,0,1,0,0],
+                                     [0,0,0,0,0,1],
+                                     [1,1,1,1,1,1]] )
+        self.axes = []
+        self.buildAxes()
+        self.scalefactor = 1
+        self.addPoints()
+
+    def buildAxes(self):
+        vtm = self.view.build()
+        tend = vtm * self.endpoints
+        self.axes.append(self.canvas.create_line(tend[0,0], tend[1,0],
+                                                 tend[0,1], tend[1,1], fill='red'))
+        self.axes.append(self.canvas.create_line(tend[0,2], tend[1,2],
+                                                 tend[0,3], tend[1,3], fill='green'))
+        self.axes.append(self.canvas.create_line(tend[0,4], tend[1,4],
+                                                 tend[0,5], tend[1,5], fill='blue'))
+
+    def updateAxes(self):
+        vtm = self.view.build()
+        tend = vtm * self.endpoints
+        for idx, line in enumerate(self.axes):
+            self.canvas.coords(line, tend[0,idx*2], tend[1,idx*2],
+                                     tend[0,idx*2+1], tend[1,idx*2+1])
+        tpoints = self.homogCoord * vtm.T
+        dx = self.dx
+        for i, point in enumerate(self.objects):
+            self.canvas.coords(point, tpoints[i,0]-dx, tpoints[i,1]-dx, tpoints[i,0]+dx, tpoints[i,1]+dx)
+
+
+    def addPoints(self):
+        vtm = self.view.build()
+        self.homogCoord = np.ones((self.points.shape[0], 4))
+        self.homogCoord[:,:-1] = self.points
+        print(self.homogCoord)
+        tend = self.homogCoord * vtm.T
+        for i in range(0,tend.shape[0]):
+            dx = self.dx
+            pt = self.canvas.create_oval( tend[i,0]-dx, tend[i,1]-dx, tend[i,0]+dx, tend[i,1]+dx,
+                                        fill=self.colorOption.get(), outline='')
+            self.objects.append(pt)
+        print(tend)
+
+    def resetView(self):
+        self.view = View()
+        self.updateAxes()
+
     def createRandomDataPoints( self, event=None ):
         for i in range(0,self.randPoints):
             if(self.xDist == "Gaussian"): # if gaussian is selected
-                x = random.gauss(502, 200) # do it
+                x = random.gauss() # do it
             else:
-                x = random.random() * 1004 # do a uniform
+                x = random.random() # do a uniform
             if(self.yDist == "Gaussian"): # same for y
-                y = random.gauss(337, 200)
+                y = random.gauss()
             else :
-                y = random.random() * 675
+                y = random.random()
+            z = random.random()
+
+            coords = [x,y,z,1]
+
+            self.homogCoord = np.vstack((self.homogCoord, coords))
             dx = self.dx
             pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
                                         fill=self.colorOption.get(), outline='')
             self.objects.append(pt)
-
+            self.updateAxes()
 
     def buildMenus(self):
 
@@ -100,14 +158,14 @@ class DisplayApp:
         # the first sublist is the set of items for the file menu
         # the second sublist is the set of items for the option menu
         menutext = [ [ 'Choose Distribution', 'Clear \xE2\x8C\x98-N', 'Quit \xE2\x8C\x98-Q' ],
-                     [ 'Command 1', '-', '-' ] ]
+                     [ 'Command 1', 'Reset View', '-' ] ]
 
         # menu callback functions (note that some are left blank,
         # so that you can add functions there if you want).
         # the first sublist is the set of callback functions for the file menu
         # the second sublist is the set of callback functions for the option menu
         menucmd = [ [self.handleDist, self.clearData, self.handleQuit],
-                    [self.handleMenuCmd1, None, None] ]
+                    [self.handleMenuCmd1, self.resetView, None] ]
 
         # build the menu elements and callbacks
         for i in range( len( menulist ) ):
@@ -162,6 +220,8 @@ class DisplayApp:
         # bind mouse motions to the canvas
         self.canvas.bind( '<Button-1>', self.handleMouseButton1 )
         self.canvas.bind( '<Control-Button-1>', self.handleMouseButton2 )
+        self.canvas.bind( '<Command-Button-1>', self.handleMouseButton3)
+        self.canvas.bind( '<Command-B1-Motion>', self.handleMouseButton3Motion)
         self.canvas.bind( '<Shift-Command-Button-1>', self.handleShiftCommand )
         self.canvas.bind( '<Button-2>', self.handleMouseButton2 )
         self.canvas.bind( '<B1-Motion>', self.handleMouseButton1Motion )
@@ -195,34 +255,58 @@ class DisplayApp:
     def handleMouseButton1(self, event):
         print 'handle mouse button 1: %d %d' % (event.x, event.y)
         self.baseClick = (event.x, event.y)
+        print(self.view.vrp)
 
     def handleMouseButton2(self, event):
         self.baseClick = (event.x, event.y)
+        self.ogExtent = self.view.extent.copy()
         print 'handle mouse button 2: %d %d' % (event.x, event.y)
 
     # This is called if the first mouse button is being moved
     def handleMouseButton1Motion(self, event):
         # calculate the difference
         diff = ( event.x - self.baseClick[0], event.y - self.baseClick[1] )
+        #print 'handle button1 motion %d %d' % (diff[0], diff[1])
 
-        # update base click
-        self.baseClick = ( event.x, event.y )
-        print 'handle button1 motion %d %d' % (diff[0], diff[1])
+        screendiff = (float(diff[0])/self.view.screen[0,0],
+                      float(diff[1])/self.view.screen[0,1])
+        multdiff   = (screendiff[0]*self.view.extent[0,0],
+                      screendiff[1]*self.view.extent[0,1])
+        self.view.vrp = self.view.vrp + (multdiff[0]*self.view.u) + (multdiff[1]*self.view.vup)
+        print(self.view.vrp)
+        self.updateAxes()
 
-        for obj in self.objects:
-            loc = self.canvas.coords(obj)
-            self.canvas.coords( obj,
-                                loc[0] + diff[0],
-                                loc[1] + diff[1],
-                                loc[2] + diff[0],
-                                loc[3] + diff[1] )
-
+        self.baseClick = self.baseClick = (event.x, event.y)
 
     # This is called if the second button of a real mouse has been pressed
     # and the mouse is moving. Or if the control key is held down while
     # a person moves their finger on the track pad.
     def handleMouseButton2Motion(self, event):
         print 'handle button 2 motion'
+        diff = event.y - self.baseClick[1]
+        if diff > 400:
+            diff = 400
+        elif diff < -400:
+            diff = -400
+        if diff < 0:
+            scalefac = (((diff + 400) * 0.9)/400) + 0.1
+        elif diff > 0:
+            scalefac = (((diff)* 3.0)/400) + 1
+        self.view.extent = self.ogExtent * scalefac
+        self.updateAxes()
+
+    def handleMouseButton3(self, event):
+        self.baseClick = (event.x, event.y)
+        self.ogView = self.view.clone()
+
+    def handleMouseButton3Motion(self,event):
+        diff = (event.x - self.baseClick[0], event.y - self.baseClick[1])
+        dx = diff[0] * math.pi/300
+        dy = diff[1] * math.pi/300
+        self.view = self.ogView.clone()
+        self.view.rotateVRC(-dx, dy)
+        self.updateAxes()
+
 
     # This method handles mb3 clicks. It drops a dot on the canvas where I click.
     def handleWheelClick(self, event):

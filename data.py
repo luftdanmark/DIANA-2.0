@@ -86,20 +86,16 @@ class Data:
         print(self.header2matrix)
         return self.matrix[row,self.header2matrix[column]]
 
-    def getData(self, columns):
+    def getData(self, columns, min=None, max=None): #gets range
         colList = []
         for col in columns:
             if self.header2matrix.has_key(col):
                 colList.append(self.header2matrix[col])
-        return self.matrix[:, colList]
-
-    def getDataRange(self, columns, min, max): #gets range
-        colList = []
-        for col in columns:
-            if self.header2matrix.has_key(col):
-                colList.append(self.header2matrix[col])
-        step1 = self.matrix[range(min,max),:] #some matric work.
-        step2 = step1[:, colList] #must be in 2 steps, else numpy throws a fit
+        if min != None and max != None:
+            step1 = self.matrix[range(min,max),:] #some matric work.
+            step2 = step1[:, colList] #must be in 2 steps, else numpy throws a fit
+        else:
+            step2 = self.matrix[:, colList]
         return step2
 
     ## End accessors for matrix data ##
@@ -122,7 +118,7 @@ class Data:
         return self.rawPoints[row]
 
     def getRawValue(self, column, row):
-        return self.rawHeaders[row][self.header2raw[column]]
+        return self.rawPoints[row][self.header2raw[column]]
 
 
     def textDump(self):
@@ -135,7 +131,10 @@ class Data:
 
 #testing with supplied testdata1.csv
 if __name__ == "__main__":
-    d = Data("testdata1.csv")
+    d = Data("testdata2.csv")
+    print(d.rawPoints)
+    print(d.getRawRow(0))
+    print(d.getRawValue('stringstuff', 0))
 
     #show that we can get numeric headers
     print(d.getHeaders())
@@ -148,10 +147,10 @@ if __name__ == "__main__":
     print(d.getRow(1))
 
     #show that we can get a value
-    print(d.getValue("thing2", 2))
-
-    #show that we can get all data for certain columns
-    print(d.getData(["thing2", "thing3"]))
-
-    #show that we can get a range of data for certain columns
-    print(d.getDataRange(["thing2", "thing3"], 2, 5))
+    # print(d.getValue("thing2", 2))
+    #
+    # #show that we can get all data for certain columns
+    # print(d.getData(["thing2", "thing3"]))
+    #
+    # print("SEP")
+    # print(d.getData(["thing2", "thing3"], 1, 5))
