@@ -73,6 +73,7 @@ class DisplayApp:
         self.scalefactor = 1
         self.addPoints()
 
+    #Builds Axes
     def buildAxes(self):
         vtm = self.view.build()
         tend = vtm * self.endpoints
@@ -83,6 +84,7 @@ class DisplayApp:
         self.axes.append(self.canvas.create_line(tend[0,4], tend[1,4],
                                                  tend[0,5], tend[1,5], fill='blue'))
 
+    #Updates Axes and points
     def updateAxes(self):
         vtm = self.view.build()
         tend = vtm * self.endpoints
@@ -94,24 +96,24 @@ class DisplayApp:
         for i, point in enumerate(self.objects):
             self.canvas.coords(point, tpoints[i,0]-dx, tpoints[i,1]-dx, tpoints[i,0]+dx, tpoints[i,1]+dx)
 
-
+    #Adds points from file chosen in init
     def addPoints(self):
         vtm = self.view.build()
         self.homogCoord = np.ones((self.points.shape[0], 4))
         self.homogCoord[:,:-1] = self.points
-        print(self.homogCoord)
         tend = self.homogCoord * vtm.T
         for i in range(0,tend.shape[0]):
             dx = self.dx
             pt = self.canvas.create_oval( tend[i,0]-dx, tend[i,1]-dx, tend[i,0]+dx, tend[i,1]+dx,
                                         fill=self.colorOption.get(), outline='')
             self.objects.append(pt)
-        print(tend)
 
+    #Resets view to standard xy plane
     def resetView(self):
         self.view = View()
         self.updateAxes()
 
+    #Updated to add random data points to the 3d space
     def createRandomDataPoints( self, event=None ):
         for i in range(0,self.randPoints):
             if(self.xDist == "Gaussian"): # if gaussian is selected
@@ -131,7 +133,7 @@ class DisplayApp:
             pt = self.canvas.create_oval( x-dx, y-dx, x+dx, y+dx,
                                         fill=self.colorOption.get(), outline='')
             self.objects.append(pt)
-            self.updateAxes()
+            self.updateAxes() #Make sure theyre placed right
 
     def buildMenus(self):
 
@@ -158,14 +160,14 @@ class DisplayApp:
         # the first sublist is the set of items for the file menu
         # the second sublist is the set of items for the option menu
         menutext = [ [ 'Choose Distribution', 'Clear \xE2\x8C\x98-N', 'Quit \xE2\x8C\x98-Q' ],
-                     [ 'Command 1', 'Reset View', '-' ] ]
+                     [ 'Capture View', 'Reset View', '-' ] ]
 
         # menu callback functions (note that some are left blank,
         # so that you can add functions there if you want).
         # the first sublist is the set of callback functions for the file menu
         # the second sublist is the set of callback functions for the option menu
         menucmd = [ [self.handleDist, self.clearData, self.handleQuit],
-                    [self.handleMenuCmd1, self.resetView, None] ]
+                    [self.handleCapture, self.resetView, None] ]
 
         # build the menu elements and callbacks
         for i in range( len( menulist ) ):
@@ -249,7 +251,7 @@ class DisplayApp:
         for obj in self.objects:
             self.canvas.itemconfig(obj, fill=self.colorOption.get() )
 
-    def handleMenuCmd1(self):
+    def handleCapture(self):
         print 'handling menu command 1'
 
     def handleMouseButton1(self, event):
@@ -276,7 +278,7 @@ class DisplayApp:
         print(self.view.vrp)
         self.updateAxes()
 
-        self.baseClick = self.baseClick = (event.x, event.y)
+        self.baseClick = (event.x, event.y)
 
     # This is called if the second button of a real mouse has been pressed
     # and the mouse is moving. Or if the control key is held down while
@@ -488,5 +490,5 @@ class Dialog(tk.Toplevel):
 
 
 if __name__ == "__main__":
-    dapp = DisplayApp(1200, 675)
+    dapp = DisplayApp(850, 655)
     dapp.main()
