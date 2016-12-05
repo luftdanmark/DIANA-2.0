@@ -4,7 +4,7 @@
 Python based 3D graphing and data analysis tool.
 DIANA is capable of representing data on 3 axes, with color and size as two additional descriptors.
 
-_DIANA can also perform:_
+##### DIANA can also perform:
 
 *Linear Regression*
 
